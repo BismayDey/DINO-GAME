@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Feature-Rich Dino Game</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        overflow: hidden;
+        background: linear-gradient(120deg, #0f2027, #203a43, #2c5364);
+        transition: background 0.5s;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      #gameOverMessage {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 48px;
+        display: none;
+        text-align: center;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 20px;
+        border-radius: 10px;
+        animation: fadeIn 1s ease-in-out;
+      }
+      #playAgainButton {
+        padding: 10px 20px;
+        background-color: limegreen;
+        color: white;
+        font-size: 20px;
+        border: none;
+        cursor: pointer;
+        margin-top: 20px;
+        border-radius: 5px;
+        animation: bounce 1.5s infinite;
+      }
+      @keyframes bounce {
+        0%,
+        20%,
+        50%,
+        80%,
+        100% {
+          transform: translateY(0);
+        }
+        40% {
+          transform: translateY(-15px);
+        }
+        60% {
+          transform: translateY(-7px);
+        }
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      .scoreboard {
+        position: absolute;
+        top: 10px;
+        font-size: 20px;
+        color: yellow;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px yellow;
+        right: 20px; /* Positioning adjusted for separation */
+      }
+      #highestScoreBoard {
+        top: 50px; /* Separate from score board */
+        right: 20px;
+      }
+      .warning {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: red;
+        font-size: 32px;
+        display: none;
+        text-align: center;
+        animation: flash 1s infinite;
+      }
+      @keyframes flash {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="gameOverMessage">
+      GAME OVER!<br />
+      <button id="playAgainButton">Play Again</button>
+    </div>
+    <div class="scoreboard" id="scoreBoard">Score: 0</div>
+    <div class="scoreboard" id="highestScoreBoard">Highest Score: 0</div>
+    <div class="warning" id="warningMessage">Get Ready for the Challenge!</div>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const gameOverMessage = document.getElementById("gameOverMessage");
+      const playAgainButton = document.getElementById("playAgainButton");
+      const scoreBoard = document.getElementById("scoreBoard");
+      const highestScoreBoard = document.getElementById("highestScoreBoard");
+      const warningMessage = document.getElementById("warningMessage");
+
+      let canvasWidth = window.innerWidth;
+      let canvasHeight = window.innerHeight;
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+
+      let dino = {
+        x: 50,
+        y: canvasHeight - 150,
+        width: 50,
+        height: 50,
+        jumping: false,
+        velocity: 0,
+      };
+      let gravity = 0.6;
+      let isGameOver = false;
+      let obstacles = [];
+      let score = 0;
+      let speed = 4;
+      let maxSpeed = 15;
+      let highestScore = 0;
+      let aggressiveMode = false;
+
+      // Controls Dino jump
+      document.addEventListener("keydown", function (event) {
+        if (event.code === "Space" && !dino.jumping && !isGameOver) {
+          dino.jumping = true;
+          dino.velocity = -12;
+        }
+      });
+
+      // Resize handler for full-screen mode
+      window.addEventListener("resize", function () {
+        canvasWidth = window.innerWidth;
+        canvasHeight = window.innerHeight;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        dino.y = canvasHeight - 150;
+      });
+
+      function updateDino() {
+        if (dino.jumping) {
+          dino.velocity += gravity;
+          dino.y += dino.velocity;
+          if (dino.y >= canvasHeight - 150) {
+            dino.jumping = false;
+            dino.y = canvasHeight - 150;
+            dino.velocity = 0;
+          }
+        }
+        ctx.fillStyle = "limegreen";
+        ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+        ctx.strokeStyle = "black";
+        ctx.strokeRect(dino.x, dino.y, dino.width, dino.height);
+      }
+
+      function createObstacle() {
+        let size = Math.random() * (70 - 30) + 30;
+        let isSkyObstacle = Math.random() < 0.5; // 50% chance for sky obstacle
+        let yPos = isSkyObstacle ? canvasHeight - 300 : canvasHeight - 150; // Sky or ground obstacle
+        let obstacle = {
+          x: canvas.width,
+          y: yPos,
+          width: size,
+          height: size,
+          type: isSkyObstacle ? "sky" : "ground",
+        };
+        obstacles.push(obstacle);
+      }
+
+      function updateObstacles() {
+        for (let i = 0; i < obstacles.length; i++) {
+          let obstacle = obstacles[i];
+          obstacle.x -= speed;
+          if (obstacle.x + obstacle.width < 0) {
+            obstacles.splice(i, 1);
+            i--;
+            score += 10;
+            scoreBoard.innerHTML = "Score: " + score;
+
+            // Check for aggressive mode trigger
+            if (score % 250 === 0) {
+              triggerAggressiveMode();
+            }
+          }
+          ctx.fillStyle = obstacle.type === "sky" ? "blue" : "orange";
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+
+          // Collision detection
+          if (
+            dino.x < obstacle.x + obstacle.width &&
+            dino.x + dino.width > obstacle.x &&
+            dino.y < obstacle.y + obstacle.height &&
+            dino.height + dino.y > obstacle.y
+          ) {
+            isGameOver = true;
+            if (score > highestScore) {
+              highestScore = score;
+              highestScoreBoard.innerHTML = "Highest Score: " + highestScore;
+            }
+            showGameOver();
+            return;
+          }
+        }
+      }
+
+      // Trigger aggressive mode
+      function triggerAggressiveMode() {
+        aggressiveMode = true;
+        document.body.style.background = "red"; // Change background to red
+        warningMessage.style.display = "block";
+
+        setTimeout(() => {
+          warningMessage.style.display = "none";
+        }, 2000); // Warning lasts for 2 seconds
+
+        setTimeout(() => {
+          aggressiveMode = false;
+          document.body.style.background =
+            "linear-gradient(120deg, #0f2027, #203a43, #2c5364)"; // Revert to normal
+        }, 5000); // Aggressive mode lasts for 5 seconds
+      }
+
+      // Speed increase over time
+      function increaseSpeed() {
+        if (aggressiveMode) {
+          speed = Math.min(speed + 0.5, maxSpeed); // Increase speed steadily
+        } else {
+          if (speed < maxSpeed) {
+            speed += 0.005;
+          }
+        }
+      }
+
+      // Game Over screen
+      function showGameOver() {
+        gameOverMessage.style.display = "block";
+        playAgainButton.addEventListener("click", resetGame);
+      }
+
+      function resetGame() {
+        isGameOver = false;
+        score = 0;
+        speed = 4;
+        obstacles = [];
+        aggressiveMode = false;
+        gameOverMessage.style.display = "none";
+        scoreBoard.innerHTML = "Score: 0";
+        highestScoreBoard.innerHTML = "Highest Score: " + highestScore;
+        warningMessage.style.display = "none"; // Hide warning on reset
+        document.body.style.background =
+          "linear-gradient(120deg, #0f2027, #203a43, #2c5364)"; // Reset background
+        dino.y = canvasHeight - 150; // Reset dino position
+        requestAnimationFrame(gameLoop);
+      }
+
+      function gameLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!isGameOver) {
+          updateDino();
+          increaseSpeed();
+          if (Math.random() < 0.01) createObstacle(); // Create obstacles randomly
+          updateObstacles();
+          requestAnimationFrame(gameLoop);
+        }
+      }
+
+      gameLoop(); // Start the game loop
+    </script>
+  </body>
+</html>
