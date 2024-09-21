@@ -110,7 +110,7 @@
   <body>
     <canvas id="gameCanvas"></canvas>
     <div id="gameOverMessage">
-      ALLAH HU AKBAR<br />
+      GAME OVER!<br />
       <button id="playAgainButton">Play Again</button>
     </div>
     <div class="scoreboard" id="scoreBoard">Score: 0</div>
@@ -251,7 +251,7 @@
       // Speed increase over time
       function increaseSpeed() {
         if (aggressiveMode) {
-          speed = Math.min(speed + 0.5, maxSpeed); // Increase speed steadily
+          speed = Math.min(speed + 0.1, maxSpeed);
         } else {
           if (speed < maxSpeed) {
             speed += 0.005;
@@ -276,23 +276,29 @@
         highestScoreBoard.innerHTML = "Highest Score: " + highestScore;
         warningMessage.style.display = "none"; // Hide warning on reset
         document.body.style.background =
-          "linear-gradient(120deg, #0f2027, #203a43, #2c5364)"; // Reset background
-        dino.y = canvasHeight - 150; // Reset dino position
-        requestAnimationFrame(gameLoop);
+          "linear-gradient(120deg, #0f2027, #203a43, #2c5364)"; // Revert background
+        gameLoop();
       }
 
       function gameLoop() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!isGameOver) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = aggressiveMode ? "rgba(255, 0, 0, 0.5)" : "white"; // Change ground color in aggressive mode
+          ctx.fillRect(0, canvasHeight - 100, canvasWidth, 10);
+
           updateDino();
-          increaseSpeed();
-          if (Math.random() < 0.01) createObstacle(); // Create obstacles randomly
           updateObstacles();
+          increaseSpeed();
+
           requestAnimationFrame(gameLoop);
         }
       }
 
-      gameLoop(); // Start the game loop
+      // Increase obstacle frequency and add sky obstacles
+      setInterval(createObstacle, 800);
+
+      // Start the game
+      gameLoop();
     </script>
   </body>
 </html>
